@@ -1,8 +1,4 @@
-﻿# ML-regression
+﻿# DataLearning
 
-This project is for practising the knowledge I acquired in my Machine Learning course related to regression. This AI calculates the probability of winning a tennis match based on the inputs created in this code.
+ This repository shows the knowledge I acquired during my learning process in Dana Analytics
 
-## Important information
-
-
-In some files, the data are created for this project. These are random and weren't gotten by someone else. In others, this comes to libraries
