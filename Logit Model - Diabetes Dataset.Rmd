@@ -1,0 +1,256 @@
+---
+title: "Ejercicio repaso parcial 1"
+author: "María Isabella Rodríguez Arévalo"
+output: word_document
+---
+
+# Library charge
+
+```{r}
+library(dplyr)
+library(caret)
+library(haven)
+library(ROSE)
+library(imbalance)
+library(smotefamily)
+library(readxl)
+```
+
+# Dataset lecture
+
+Dataset taken from Kaggle
+
+```{r}
+Data <- read.csv("diabetes.csv")
+```
+
+#Variables del dataset
+
+* Pregnancies
+* Glucose
+* BloodPressure
+* SkinThickness
+* Insulin
+* BMI
+* Age
+* DiabetesPedigreeFunction
+* Outcome = y
+
+# Step 1: Apply factor function in cualitative variables
+
+The majority of variables are quantitative. For that reason, The "outcome" variable will be applied to the factor function 
+
+```{r}
+Data$Outcome <-as.factor(Data$Outcome) # toma el 0 y 1 como caracter
+```
+
+If $outcome = 0$, it means the person doesn't have diabetes
+If $outcome = 1$, it means the person has diabetes
+
+# Step 2: Look for the relation between the variable Outcome and cualitative variables
+
+Due to the lack of cualitative variables, this step is omitted. It used to do it with Chi Square and $\alpha = 0.1$
+
+# Step 3: Check if the "Outcome" variable is balanced
+
+```{r}
+table(Data$Outcome)
+```
+
+According to the result, it's necessary to balance the "Outcome" variable because the categories don't have a behaviour of $50\%-50\%$ or $60\%-40\%$
+
+```{r}
+cat_major <- Data %>% filter(Outcome==0) #Filter by the biggest category
+cat_minor <- Data %>% filter(Outcome==1) #Filter by the biggest category
+
+# Choose the biggest category
+set.seed(1234)
+sample_major <- sample_n(cat_major, nrow(cat_minor))
+
+# New dataset for working
+data_balanced <- bind_rows(sample_major, cat_minor)
+table(data_balanced$Outcome)
+```
+
+#Step 4: Train dataset and Test dataset
+
+```{r}
+library(caret)
+TrainData <- createDataPartition(y = data_balanced$Outcome, 
+                                         p = 0.7,
+                                         list = F)
+Train <- data_balanced[TrainData,]
+Test <- data_balanced[-TrainData,]
+dim(Train);dim(Test)
+```
+
+# Step 5: Logit model
+
+In this step, I'm looking for the variables which have a relation with the "Outcome" variable. For checking this information, it is 2 hypothesis where
+
+* $H_o$: The variable doesn't have a relation with the "Outcome" variable 
+* $H_1$: The variable has a relation with the "Outcome" variable 
+
+```{r}
+model1 <- glm(Outcome ~ ., data = Train, family = "binomial")
+summary(model1)
+```
+
+Looking at the information, "BloodPressure", "SkinThickness", "Insulin" and "Age" are higher than $\alpha$ value. Therefore, the model keeps "Pregnancies", "Glucose", "BMI" and "DiabetesPedigreeFunction" variables and the others are deleted.
+
+```{r}
+Pregnancies <- Train$Pregnancies
+Glucose <- Train$Glucose
+BMI <- Train$BMI
+DiabetesPedigreeFunction <- Train$DiabetesPedigreeFunction
+Outcome <- Train$Outcome
+
+Train_n <- data.frame(Pregnancies, Glucose, BMI, DiabetesPedigreeFunction, Outcome)
+
+Pregnancies <- Test$Pregnancies
+Glucose <- Test$Glucose
+BMI <- Test$BMI
+DiabetesPedigreeFunction <- Test$DiabetesPedigreeFunction
+Outcome <- Test$Outcome
+
+Test_n <- data.frame(Pregnancies, Glucose, BMI, DiabetesPedigreeFunction, Outcome)
+```
+
+```{r}
+model2 <- glm(Outcome ~ ., data = Train_n, family = "binomial")
+summary(model2)
+```
+
+# Step 6: Model adjustment
+
+```{r}
+trainf <- predict(model2, newdata = Test_n, type = "response")
+head(trainf)
+```
+
+```{r}
+Informal <- factor(ifelse(trainf > 0.7, 1, 0)) 
+
+levels(Informal) <- c("yes", "no")
+levels(Test_n$Outcome) <- c("yes", "no")
+confusionMatrix(Informal, Test_n$Outcome, positive = "yes", mode = "everything")
+```
+
+The confusion matrix show that the model predict 76 peope correctly saying that they have diabetes when they have; however 41 people got a wrong result telling them they don't have diabetes when they have. On the other hand, 4 people receive a positive result for diabetes when they don't have; meanwhile 39 people got a negative result when they don't have diabetes. 
+In conclusion, it's a good confusion matrix, but it's possible to improve it
+
+# Step 7: Trying to get other confusion matrix
+
+## Model 3
+
+```{r}
+trainf <- predict(model2, newdata = Test_n, type = "response")
+head(trainf)
+```
+
+```{r}
+Informal <- factor(ifelse(trainf > 0.6, 1, 0)) 
+
+levels(Informal) <- c("yes", "no")
+levels(Test_n$Outcome) <- c("yes", "no")
+confusionMatrix(Informal, Test_n$Outcome, positive = "yes", mode = "everything")
+```
+
+## Model 4
+
+```{r}
+library(caret)
+TrainData <- createDataPartition(y = data_balanced$Outcome, 
+                                         p = 0.8,
+                                         list = F)
+Train <- data_balanced[TrainData,]
+Test <- data_balanced[-TrainData,]
+dim(Train);dim(Test)
+```
+
+```{r}
+Pregnancies <- Train$Pregnancies
+Glucose <- Train$Glucose
+BMI <- Train$BMI
+DiabetesPedigreeFunction <- Train$DiabetesPedigreeFunction
+Outcome <- Train$Outcome
+
+Train_n <- data.frame(Pregnancies, Glucose, BMI, DiabetesPedigreeFunction, Outcome)
+
+Pregnancies <- Test$Pregnancies
+Glucose <- Test$Glucose
+BMI <- Test$BMI
+DiabetesPedigreeFunction <- Test$DiabetesPedigreeFunction
+Outcome <- Test$Outcome
+
+Test_n <- data.frame(Pregnancies, Glucose, BMI, DiabetesPedigreeFunction, Outcome)
+```
+
+
+```{r}
+model4 <- glm(Outcome ~ ., data = Train_n, family = "binomial")
+summary(model3)
+```
+
+```{r}
+trainf <- predict(model3, newdata = Test_n, type = "response")
+head(trainf)
+```
+
+```{r}
+Informal <- factor(ifelse(trainf > 0.65, 1, 0)) 
+
+levels(Informal) <- c("yes", "no")
+levels(Test_n$Outcome) <- c("yes", "no")
+confusionMatrix(Informal, Test_n$Outcome, positive = "yes", mode = "everything")
+```
+
+## Model 5
+
+```{r}
+library(caret)
+TrainData <- createDataPartition(y = data_balanced$Outcome, 
+                                         p = 0.9,
+                                         list = F)
+Train <- data_balanced[TrainData,]
+Test <- data_balanced[-TrainData,]
+dim(Train);dim(Test)
+```
+
+```{r}
+Pregnancies <- Train$Pregnancies
+Glucose <- Train$Glucose
+BMI <- Train$BMI
+DiabetesPedigreeFunction <- Train$DiabetesPedigreeFunction
+Outcome <- Train$Outcome
+
+Train_n <- data.frame(Pregnancies, Glucose, BMI, DiabetesPedigreeFunction, Outcome)
+
+Pregnancies <- Test$Pregnancies
+Glucose <- Test$Glucose
+BMI <- Test$BMI
+DiabetesPedigreeFunction <- Test$DiabetesPedigreeFunction
+Outcome <- Test$Outcome
+
+Test_n <- data.frame(Pregnancies, Glucose, BMI, DiabetesPedigreeFunction, Outcome)
+```
+
+
+```{r}
+model5 <- glm(Outcome ~ ., data = Train_n, family = "binomial")
+summary(model5)
+```
+
+```{r}
+trainf <- predict(model4, newdata = Test_n, type = "response")
+head(trainf)
+```
+
+```{r}
+Informal <- factor(ifelse(trainf > 0.6, 1, 0)) 
+
+levels(Informal) <- c("yes", "no")
+levels(Test_n$Outcome) <- c("yes", "no")
+confusionMatrix(Informal, Test_n$Outcome, positive = "yes", mode = "everything")
+```
+
